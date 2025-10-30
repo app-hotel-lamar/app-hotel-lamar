@@ -13,25 +13,21 @@ firebase.initializeApp(firebaseConfig);
 const auth = firebase.auth();
 const db = firebase.firestore();
 
-// === FUNCIÓN VERIFICAR ESTANCIA (CORREGIDA) ===
+// Verificar estancia
 async function verificarEstancia(habitacion) {
     try {
         const doc = await db.collection('habitaciones').doc(habitacion).get();
-        if (!doc.exists) {
-            console.log("No existe el documento:", habitacion);
-            return false;
-        }
+        if (!doc.exists) return false;
         const data = doc.data();
-        const hoy = new Date().toISOString().split('T')[0]; // 2025-10-30
-        console.log("Hoy:", hoy, "| checkIn:", data.checkIn, "| checkOut:", data.checkOut);
+        const hoy = new Date().toISOString().split('T')[0];
         return data.ocupada && data.checkIn <= hoy && data.checkOut >= hoy;
     } catch (error) {
-        console.error("Error verificando estancia:", error);
+        console.error("Error:", error);
         return false;
     }
 }
 
-// === LOGIN (login.html) ===
+// === LOGIN ===
 if (document.getElementById('loginForm')) {
     document.getElementById('loginForm').addEventListener('submit', async (e) => {
         e.preventDefault();
@@ -46,24 +42,28 @@ if (document.getElementById('loginForm')) {
                 localStorage.setItem('habitacion', habitacion);
                 window.location.href = 'index.html';
             } else {
-                document.getElementById('mensajeLogin').innerText = 'Acceso expirado o habitación no ocupada.';
+                document.getElementById('mensajeLogin').innerText = 'Acceso expirado.';
                 auth.signOut();
             }
         } catch (error) {
-            document.getElementById('mensajeLogin').innerText = 'Habitación o contraseña incorrecta.';
-            console.error("Error login:", error);
+            document.getElementById('mensajeLogin').innerText = 'Credenciales incorrectas.';
         }
     });
 }
 
-// === PROTECCIÓN index.html ===
-if (window.location.pathname.includes('index.html') || window.location.pathname === '/') {
+// === PROTECCIÓN DE INDEX.HTML ===
+const isIndexPage = window.location.pathname.includes('index.html') || window.location.pathname.endsWith('/app-hotel-lamar/') || window.location.pathname === '/app-hotel-lamar/';
+if (isIndexPage) {
     const habitacion = localStorage.getItem('habitacion');
+    
     if (!habitacion) {
         window.location.href = 'login.html';
     } else {
-        document.getElementById('numHabitacion').innerText = habitacion;
+        // Mostrar habitación
+        const el = document.getElementById('numHabitacion');
+        if (el) el.innerText = habitacion;
 
+        // Verificar validez
         verificarEstancia(habitacion).then(valida => {
             if (!valida) {
                 localStorage.removeItem('habitacion');
@@ -72,12 +72,15 @@ if (window.location.pathname.includes('index.html') || window.location.pathname 
             }
         });
 
-        // Logout
-        document.getElementById('btnLogout').addEventListener('click', () => {
-            auth.signOut();
-            localStorage.removeItem('habitacion');
-            window.location.href = 'login.html';
-        });
+        // === BOTÓN CERRAR SESIÓN (CORREGIDO) ===
+        const btnLogout = document.getElementById('btnLogout');
+        if (btnLogout) {
+            btnLogout.addEventListener('click', () => {
+                auth.signOut();
+                localStorage.removeItem('habitacion');
+                window.location.href = 'login.html';
+            });
+        }
 
         // Formularios
         const formAlquiler = document.getElementById('formAlquiler');
@@ -85,7 +88,7 @@ if (window.location.pathname.includes('index.html') || window.location.pathname 
             formAlquiler.addEventListener('submit', (e) => {
                 e.preventDefault();
                 const cant = document.getElementById('cantidad').value;
-                document.getElementById('mensajeAlquiler').innerHTML = `<span class="text-success">¡${cant} items solicitados!</span>`;
+                document.getElementById('mensajeAlquiler').innerHTML = `<span class="text-success">¡${cant} items en camino!</span>`;
             });
         }
 
